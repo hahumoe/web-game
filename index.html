@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEON REMNANT - BONUS TURN v8.5</title>
+    <style>
+        :root { --blue: #00f3ff; --pink: #ff00ff; --yellow: #f3ff00; --red: #ff4444; --bg: #050508; --dark: #0a0a14; --darker: #050508; }
+        
+        body { 
+            background: linear-gradient(135deg, var(--darker) 0%, #0d0d1a 100%); 
+            color: var(--blue); 
+            font-family: 'Consolas', monospace; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            overflow: hidden;
+        }
+        
+        @keyframes shake { 0% { transform: translate(2px, 2px); } 20% { transform: translate(-2px, -2px); } 40% { transform: translate(2px, -2px); } 100% { transform: translate(0,0); } }
+        .shake { animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both; }
+        
+        @keyframes shakeMinor { 0% { transform: translate(1px, 1px); } 25% { transform: translate(-1px, -1px); } 50% { transform: translate(1px, -1px); } 75% { transform: translate(-1px, 1px); } 100% { transform: translate(0, 0); } }
+        @keyframes shakeMedium { 0% { transform: translate(3px, 3px); } 25% { transform: translate(-3px, -3px); } 50% { transform: translate(3px, -3px); } 75% { transform: translate(-3px, 3px); } 100% { transform: translate(0, 0); } }
+        @keyframes shakeStrong { 0% { transform: translate(5px, 5px); } 25% { transform: translate(-5px, -5px); } 50% { transform: translate(5px, -5px); } 75% { transform: translate(-5px, 5px); } 100% { transform: translate(0, 0); } }
+        @keyframes shakeIntense { 0% { transform: translate(8px, 8px); } 25% { transform: translate(-8px, -8px); } 50% { transform: translate(8px, -8px); } 75% { transform: translate(-8px, 8px); } 100% { transform: translate(0, 0); } }
+        
+        .shake-minor { animation: shakeMinor 0.2s ease-out; }
+        .shake-medium { animation: shakeMedium 0.3s ease-out; }
+        .shake-strong { animation: shakeStrong 0.4s ease-out; }
+        .shake-intense { animation: shakeIntense 0.5s ease-out; }
+        
+        @keyframes pulseRed { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .stun-blink { animation: pulseRed 0.8s infinite; color: var(--red) !important; font-weight: bold; text-shadow: 0 0 5px var(--red); }
+        
+        @keyframes glow { 0% { text-shadow: 0 0 5px currentColor; } 50% { text-shadow: 0 0 15px currentColor; } 100% { text-shadow: 0 0 5px currentColor; } }
+        
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .bonus-hint { color: var(--pink); font-weight: bold; font-size: 0.8rem; margin-top: 5px; display: none; animation: slideIn 0.3s ease-out; }
+        .iron-hint { color: var(--yellow); font-weight: bold; font-size: 0.8rem; margin-top: 5px; display: none; animation: slideIn 0.3s ease-out; }
+
+        /* 觸電提示：黃色發光，突顯每回合傷害 */
+        .shock-blink { animation: glow 0.9s infinite; color: var(--yellow); font-weight: bold; text-shadow: 0 0 10px var(--yellow); }
+
+        /* 鐵壁圖示樣式 */
+        .ironwall-icon { display: none; margin-left: 8px; font-size: 1.1rem; vertical-align: middle; filter: drop-shadow(0 0 4px rgba(0,0,0,0.6)); }
+
+        #game-container { 
+            width: 900px; 
+            background: rgba(10, 10, 20, 0.95); 
+            border: 2px solid var(--blue); 
+            padding: 40px; 
+            box-shadow: 0 0 80px rgba(0, 243, 255, 0.2), inset 0 0 40px rgba(0, 243, 255, 0.05);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .header { 
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            border-bottom: 2px solid rgba(0, 243, 255, 0.3);
+            padding-bottom: 20px; 
+            margin-bottom: 25px;
+        }
+        
+        .stat-box { 
+            font-size: 0.9rem;
+            background: rgba(0, 243, 255, 0.05);
+            padding: 12px 16px;
+            border: 1px solid rgba(0, 243, 255, 0.2);
+            border-radius: 8px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .bar-container {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            border-radius: 6px;
+            height: 24px;
+            margin-top: 6px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .bar-fill {
+            height: 100%;
+            border-radius: 5px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #hp-bar {
+            background: linear-gradient(90deg, rgba(255, 68, 68, 0.3), rgba(255, 68, 68, 0.7));
+            box-shadow: 0 0 10px rgba(255, 68, 68, 0.3);
+        }
+        
+        #en-bar {
+            background: linear-gradient(90deg, rgba(0, 243, 255, 0.3), rgba(0, 243, 255, 0.7));
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+        }
+        
+        .bar-text {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+            color: white;
+            font-weight: bold;
+            font-size: 0.75rem;
+            text-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+        }
+        
+        .stat-box:hover {
+            background: rgba(0, 243, 255, 0.1);
+            border-color: rgba(0, 243, 255, 0.4);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+        }
+        
+        .highlight { 
+            color: var(--pink); 
+            text-shadow: 0 0 10px var(--pink);
+            font-weight: bold;
+        }
+        
+        #story-box { 
+            height: 180px; 
+            overflow-y: auto; 
+            line-height: 1.8; 
+            border-left: 4px solid var(--pink); 
+            padding: 20px;
+            margin-bottom: 25px;
+            background: rgba(255, 0, 255, 0.03);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            scroll-behavior: smooth;
+        }
+        
+        #story-box::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        #story-box::-webkit-scrollbar-track {
+            background: rgba(0, 243, 255, 0.05);
+            border-radius: 3px;
+        }
+        
+        #story-box::-webkit-scrollbar-thumb {
+            background: var(--pink);
+            border-radius: 3px;
+        }
+        
+        .enemy-panel { 
+            background: rgba(255, 0, 0, 0.08); 
+            border: 2px solid var(--pink); 
+            padding: 20px; 
+            margin-bottom: 25px; 
+            display: none;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(255, 0, 255, 0.15);
+            transition: all 0.3s ease;
+        }
+        
+        .enemy-panel.rank-normal { 
+            border-color: var(--pink); 
+            background: rgba(255, 0, 255, 0.08);
+            box-shadow: 0 0 25px rgba(255, 0, 255, 0.1);
+        }
+        
+        .enemy-panel.rank-elite { 
+            border-color: var(--yellow); 
+            background: rgba(243, 255, 0, 0.12);
+            box-shadow: 0 0 30px rgba(243, 255, 0, 0.15);
+        }
+        
+        .enemy-panel.rank-boss { 
+            border-color: var(--red); 
+            background: rgba(255, 68, 68, 0.15);
+            box-shadow: 0 0 40px rgba(255, 68, 68, 0.2);
+            animation: glow 2s ease-in-out infinite;
+        }
+        
+        .enemy-panel > div:first-child {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+        }
+        
+        .enemy-panel strong {
+            color: var(--pink);
+            font-weight: bold;
+        }
+        
+        .intent-box { 
+            margin-top: 15px; 
+            padding: 12px; 
+            border-top: 1px solid rgba(255, 0, 255, 0.3);
+            border-radius: 6px;
+            font-size: 1rem;
+            background: rgba(255, 0, 255, 0.05);
+        }
+
+        #choices { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px;
+        }
+        
+        .btn { 
+            background: linear-gradient(135deg, rgba(0, 243, 255, 0.1), rgba(0, 243, 255, 0.05));
+            border: 2px solid var(--blue); 
+            color: var(--blue); 
+            padding: 10px 10px; 
+            cursor: pointer; 
+            text-transform: uppercase; 
+            font-family: inherit; 
+            font-weight: bold; 
+            font-size: 0.85rem;
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            border-radius: 0;
+            overflow: hidden;
+            transform: skewX(-15deg);
+            clip-path: polygon(15% 0%, 100% 0%, 85% 100%, 0% 100%);
+        }
+        
+        .btn span {
+            display: inline-block;
+            transform: skewX(15deg);
+            font-size: 0.85rem;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+            z-index: -1;
+        }
+        
+        .btn:hover:not(:disabled)::before {
+            left: 100%;
+        }
+        
+        .btn:hover:not(:disabled) { 
+            background: var(--blue);
+            color: var(--dark);
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.4), inset 0 0 15px rgba(0, 243, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .btn:active:not(:disabled) {
+            transform: translateY(0px);
+        }
+        
+        .btn:disabled { 
+            border-color: rgba(100, 100, 100, 0.4); 
+            color: rgba(100, 100, 100, 0.6); 
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        
+        .btn-shop { 
+            border-color: var(--yellow);
+            color: var(--yellow);
+            background: linear-gradient(135deg, rgba(243, 255, 0, 0.1), rgba(243, 255, 0, 0.05));
+            clip-path: polygon(15% 0%, 100% 0%, 85% 100%, 0% 100%);
+        }
+        
+        .btn-shop:hover:not(:disabled) {
+            background: var(--yellow);
+            color: var(--dark);
+            box-shadow: 0 0 25px rgba(243, 255, 0, 0.4), inset 0 0 15px rgba(243, 255, 0, 0.2);
+        }
+        
+        .btn small { 
+            display: block; 
+            font-size: 0.6rem; 
+            font-weight: normal; 
+            opacity: 0.8;
+            margin-top: 2px;
+        }
+
+        @media (max-width: 900px) {
+            #game-container { 
+                width: 95%; 
+                padding: 25px;
+            }
+            
+            .header {
+                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            }
+            
+            #choices {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="header">
+        <div class="stat-box">STAGE: <span id="stage-val" class="highlight">1</span></div>
+        <div class="stat-box">
+            HP
+            <div class="bar-container">
+                <div id="hp-bar" class="bar-fill" style="width: 100%;"></div>
+                <span class="bar-text"><span id="hp-val">100</span>/100</span>
+            </div>
+        </div>
+        <div class="stat-box">
+            EN
+            <div class="bar-container">
+                <div id="en-bar" class="bar-fill" style="width: 30%;"></div>
+                <span class="bar-text"><span id="en-val">30</span>/<span id="max-en-val">100</span></span>
+            </div>
+        </div>
+        <div class="stat-box">ATK: <span id="atk-val">25</span></div>
+        <div class="stat-box">CREDITS: <span id="credit-val" style="color:var(--yellow)">50</span></div>
+    </div>
+
+    <div id="enemy-panel" class="enemy-panel">
+        <div style="display:flex; justify-content:space-between">
+            <strong id="enemy-name">TARGET</strong>
+            <span>HP: <span id="enemy-hp">0</span></span>
+        </div>
+        <div id="enemy-style" style="margin-top:6px; font-size:0.9rem; opacity:0.8">風格：-</div>
+        <div class="intent-box">
+            掃描意圖：<span id="enemy-intent">...</span><span id="ironwall-icon" class="ironwall-icon">🛡️</span>
+            <div id="bonus-hint" class="bonus-hint">獲得額外行動回合！</div>
+            <div id="iron-hint" class="iron-hint">精準打擊可忽略鐵壁！</div>
+            <div id="pred-box" style="margin-top:4px; font-size:0.95rem; opacity:0.9">預測傷害：<span id="enemy-dmg">0</span>（防禦後：<span id="enemy-dmg-def">0</span>）</div>
+        </div>
+    </div>
+
+    <div id="story-box"><div id="story-text">系統連線中...</div></div>
+    <div id="choices"></div>
+</div>
+
+<script>
+    let player = { hp: 100, en: 30, maxEn: 100, credits: 50, stage: 1, atk: 25, isDefending: false, upgrades: { basicBonus: 0, enGainBasic: 0, heavyMult: 1.0, hackStunBonus: 0, defenseReduce: 0.2, thorns: 0, costReduction: 0, dmgBonusFlat: 0, hasChargeStrike: false }, ownedUpgrades: {}, shopCounts: { atk: 0 } };
+    let currentEnemy = null;
+    let audioCtx = null;
+    let sfxBuffers = {};
+    function ensureAudio() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        return audioCtx;
+    }
+
+    async function preloadSFX() {
+        try {
+            const ctx = ensureAudio();
+            // note: file resides under assets/audio per project structure
+            const resp = await fetch('assets/audio/glass_shatter.mp3');
+            if (!resp.ok) throw new Error('fetch failed ' + resp.status);
+            const ab = await resp.arrayBuffer();
+            sfxBuffers.glass = await ctx.decodeAudioData(ab);
+            console.log('Loaded assets/audio/glass_shatter.mp3');
+        } catch (e) {
+            console.error('preloadSFX error:', e);
+            console.log('glass_shatter.mp3 not found or failed to load — using synth fallback.');
+        }
+        return !!sfxBuffers.glass;
+    }
+
+    // attempt to preload user-provided audio file; if missing, synthesized SFX remains
+    preloadSFX();
+
+    // previously had a debug button here for testing audio; removed per request.
+    function playSFX(type) {
+        const ctx = ensureAudio();
+        const now = ctx.currentTime;
+        const out = ctx.createGain();
+        const comp = ctx.createDynamicsCompressor();
+        comp.threshold.value = -24;
+        comp.knee.value = 30;
+        comp.ratio.value = 12;
+        comp.attack.value = 0.003;
+        comp.release.value = 0.06;
+        out.connect(comp);
+        comp.connect(ctx.destination);
+        let dur = type === 'heavy' ? 0.16 : 0.12;
+        let baseVol = type === 'heavy' ? 0.9 : 0.8;
+        if (type === 'get') { dur = 0.1; baseVol = 0.7; }
+        if (type === 'break') { dur = 0.1; baseVol = 0.9; }
+        const noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+        const ch = noiseBuf.getChannelData(0);
+        for (let i = 0; i < ch.length; i++) {
+            const t = i / ch.length;
+            const a = 1 - t;
+            ch[i] = (Math.random() * 2 - 1) * a * a;
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = noiseBuf;
+        const nFilter = ctx.createBiquadFilter();
+        if (type === 'heavy') {
+            nFilter.type = 'lowpass';
+            nFilter.frequency.value = 700 + Math.random() * 80;
+            nFilter.Q.value = 0.7;
+        } else if (type === 'get') {
+            nFilter.type = 'highpass';
+            nFilter.frequency.value = 1100 + Math.random() * 150;
+            nFilter.Q.value = 0.9;
+        } else if (type === 'break') {
+            nFilter.type = 'highpass';
+            nFilter.frequency.value = 1800 + Math.random() * 200;
+            nFilter.Q.value = 1.0;
+        } else {
+            nFilter.type = 'bandpass';
+            nFilter.frequency.value = 900 + Math.random() * 120;
+            nFilter.Q.value = 0.9;
+        }
+        const nGain = ctx.createGain();
+        nGain.gain.setValueAtTime(0.001, now);
+        nGain.gain.exponentialRampToValueAtTime(baseVol, now + 0.004);
+        nGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+        // If a real glass shatter SFX was preloaded, play it for 'break'
+        if (type === 'break' && sfxBuffers.glass) {
+            try {
+                const src = ctx.createBufferSource();
+                src.buffer = sfxBuffers.glass;
+                const g2 = ctx.createGain();
+                g2.gain.setValueAtTime(baseVol, now);
+                src.connect(g2);
+                g2.connect(out);
+                src.start(now);
+                // stop slightly after duration to be safe
+                src.stop(now + (sfxBuffers.glass.duration || dur) + 0.02);
+                return;
+            } catch (e) {
+                // fall back to synthesized version if playback fails
+                console.warn('SFX buffer play failed, falling back to synth', e);
+            }
+        }
+        noise.connect(nFilter);
+        nFilter.connect(nGain);
+        nGain.connect(out);
+        const th = ctx.createOscillator();
+        th.type = 'sine';
+        const thGain = ctx.createGain();
+        let startF = 170, endF = 80, thVol = 0.5;
+        if (type === 'heavy') { startF = 120; endF = 55; thVol = 0.7; }
+        if (type === 'get') { startF = 230; endF = 150; thVol = 0.35; }
+        if (type === 'break') { startF = 1200; endF = 450; thVol = 0.5; }
+        th.frequency.setValueAtTime(startF, now);
+        th.frequency.exponentialRampToValueAtTime(endF, now + dur * 0.8);
+        thGain.gain.setValueAtTime(0.001, now);
+        thGain.gain.exponentialRampToValueAtTime(thVol, now + 0.006);
+        thGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+        th.connect(thGain);
+        thGain.connect(out);
+        noise.start(now);
+        noise.stop(now + dur + 0.02);
+        th.start(now);
+        th.stop(now + dur + 0.02);
+    }
+
+    const enemies = [
+        { name: "清道夫無人機", hp: 25, atk: 6, reward: 20, style: "防禦型" },
+        { name: "仿生街頭混混", hp: 35, atk: 9, reward: 30, style: "侵略型" },
+        { name: "企業治安機甲", hp: 50, atk: 12, reward: 50, style: "重甲型" },
+        { name: "暗網滲透者", hp: 30, atk: 8, reward: 25, style: "駭客型" },
+        { name: "血清狂徒", hp: 40, atk: 10, reward: 35, style: "狂戰型" },
+        { name: "重裝運輸車", hp: 60, atk: 10, reward: 45, style: "重甲型" },
+        { name: "信息蒐集者", hp: 28, atk: 7, reward: 22, style: "駭客型" },
+        { name: "掠奪無人機群", hp: 32, atk: 8, reward: 28, style: "侵略型" },
+        { name: "崗哨機器人", hp: 45, atk: 11, reward: 40, style: "防禦型" }
+    ];
+
+    const styles = {
+        "侵略型": {
+            dmgMul: 1.2, dmgTakenMul: 1, extraHp: 0,
+            intentList: [
+                { name: "標準攻擊", w: 0.45 },
+                { name: "蓄力重擊", w: 0.25 },
+                { name: "突進", w: 0.2 },
+                { name: "掃射", w: 0.1 }
+            ]
+        },
+        "防禦型": {
+            dmgMul: 0.9, dmgTakenMul: 0.8, extraHp: 0,
+            intentList: [
+                { name: "標準攻擊", w: 0.2 },
+                { name: "進入守備", w: 0.5 },
+                { name: "穩固格擋", w: 0.3 }
+            ]
+        },
+        "駭客型": {
+            dmgMul: 1.0, dmgTakenMul: 1, extraHp: 0,
+            intentList: [
+                { name: "標準攻擊", w: 0.35 },
+                { name: "資料抽取", w: 0.4 },
+                { name: "過載脈衝", w: 0.15 },
+                { name: "進入守備", w: 0.1 }
+            ]
+        },
+        "狂戰型": {
+            dmgMul: 1.0, dmgTakenMul: 1, extraHp: 0, berserk: true,
+            intentList: [
+                { name: "標準攻擊", w: 0.4 },
+                { name: "蓄力重擊", w: 0.2 },
+                { name: "狂怒斬擊", w: 0.25 },
+                { name: "血清注射", w: 0.15 }
+            ]
+        },
+        "重甲型": {
+            dmgMul: 0.8, dmgTakenMul: 0.7, extraHp: 40,
+            intentList: [
+                { name: "標準攻擊", w: 0.45 },
+                { name: "鐵壁防守", w: 0.15 },
+                { name: "進入守備", w: 0.1 },
+                { name: "穩固格擋", w: 0.1 },
+                { name: "碾壓衝撞", w: 0.2 }
+            ]
+        },
+        "裁決型": {
+            dmgMul: 1.2, dmgTakenMul: 0.9, extraHp: 0,
+            intentList: [
+                { name: "標準攻擊", w: 0.35 },
+                { name: "蓄力重擊", w: 0.25 },
+                { name: "制裁", w: 0.25 },
+                { name: "進入守備", w: 0.15 }
+            ]
+        }
+    };
+
+    function pickByWeightFromList(list) {
+        let sum = 0;
+        for (let i = 0; i < list.length; i++) sum += list[i].w;
+        let r = Math.random() * sum;
+        for (let i = 0; i < list.length; i++) {
+            r -= list[i].w;
+            if (r <= 0) return list[i].name;
+        }
+        return list[0]?.name || "標準攻擊";
+    }
+
+    function isDefendIntent(intent) {
+        return intent === "進入守備" || intent === "穩固格擋" || intent === "鐵壁防守";
+    }
+
+    function isChargeIntent(intent) {
+        return intent === "蓄力重擊" || intent === "制裁";
+    }
+
+    function isDashIntent(intent) { return intent === "突進"; }
+    function isSuppressIntent(intent) { return intent === "掃射"; }
+    function isHackIntent(intent) { return intent === "資料抽取" || intent === "過載脈衝"; }
+    function isBerserkIntent(intent) { return intent === "狂怒斬擊"; }
+    function isHealIntent(intent) { return intent === "血清注射"; }
+    // Treat 碾壓衝撞 as a normal attack so it can be interrupted by hack
+    function isNormalAttackIntent(intent) { return intent === "標準攻擊" || intent === "碾壓衝撞"; }
+    function isAttackIntent(intent) {
+        if (!intent) return false;
+        if (intent === "系統癱瘓") return false;
+        if (isDefendIntent(intent)) return false;
+        if (isHealIntent(intent)) return false;
+        return true;
+    }
+    function isIronWall(intent) { return intent === "鐵壁防守"; }
+
+    function initStage() {
+        player.shopCache = {};
+        updateUI();
+        document.getElementById('enemy-panel').style.display = 'none';
+        if (player.stage % 10 === 0) triggerBoss();
+        else if (Math.random() < 0.4) triggerEvent();
+        else triggerCombat();
+    }
+
+    function triggerCombat() {
+        currentEnemy = { ...enemies[Math.floor(Math.random() * enemies.length)] };
+        // Small scaling per stage (instead of large +5 per stage)
+        const stageMultiplier = 1 + (player.stage * 0.08);
+        currentEnemy.hp = Math.floor(currentEnemy.hp * stageMultiplier);
+        currentEnemy.atk = Math.floor(currentEnemy.atk * (1 + player.stage * 0.03));
+        currentEnemy.reward = Math.floor(currentEnemy.reward * stageMultiplier);
+        currentEnemy.style = currentEnemy.style || "侵略型";
+        currentEnemy.styleCfg = styles[currentEnemy.style] || styles["侵略型"];
+        currentEnemy.hp += currentEnemy.styleCfg.extraHp || 0;
+        currentEnemy.baseHp = currentEnemy.hp;
+        // Lower elite chance (10% instead of 25%)
+        const elite = (player.stage % 4 === 0 && player.stage > 0) || (Math.random() < 0.1);
+        if (elite) {
+            currentEnemy.rank = "Elite";
+            currentEnemy.name = `【菁英】${currentEnemy.name}`;
+            currentEnemy.hp = Math.floor(currentEnemy.hp * 1.6);
+            currentEnemy.baseHp = currentEnemy.hp;
+            currentEnemy.atk = Math.floor(currentEnemy.atk * 1.25);
+            currentEnemy.reward = Math.floor(currentEnemy.reward * 1.8);
+        } else {
+            currentEnemy.rank = "Normal";
+        }
+        currentEnemy.attackStreak = 0;
+        msg(`遇見敵方：<span class="highlight">${currentEnemy.name}</span>。`);
+        startCombat();
+    }
+
+    function triggerBoss() {
+        applyShake(50);
+        const bossTypes = [
+            { name: "【裁決者】執行官", hp: 200, atk: 25, reward: 300, style: "裁決型" },
+            { name: "【傀儡王】中樞AI", hp: 180, atk: 23, reward: 280, style: "駭客型" },
+            { name: "【鐵血】要塞戰甲", hp: 220, atk: 22, reward: 320, style: "重甲型" },
+            { name: "【破壞者】殲滅單位", hp: 210, atk: 26, reward: 310, style: "侵略型" }
+        ];
+        const boss = bossTypes[player.stage % bossTypes.length];
+        const stageBonus = player.stage * 0.5;
+        currentEnemy = { 
+            name: boss.name, 
+            hp: Math.floor(boss.hp + stageBonus),
+            atk: Math.floor(boss.atk + stageBonus * 0.2),
+            reward: Math.floor(boss.reward + stageBonus * 2),
+            style: boss.style
+        };
+        currentEnemy.styleCfg = styles[currentEnemy.style] || styles["裁決型"];
+        currentEnemy.baseHp = currentEnemy.hp;
+        currentEnemy.rank = "Boss";
+        currentEnemy.attackStreak = 0;
+        msg(`<span class="highlight">警告：BOSS 級單位接近！</span><br>${currentEnemy.name} 已鎖定你的座標。`);
+        startCombat();
+    }
+
+    function startCombat() {
+        document.getElementById('enemy-panel').style.display = 'block';
+        updateEnemyUI();
+        setEnemyIntent();
+        renderCombatOptions();
+    }
+
+    function setEnemyIntent() {
+        const generic = ["標準攻擊", "蓄力重擊", "進入守備"];
+        let picked;
+        if (currentEnemy.styleCfg && currentEnemy.styleCfg.intentList) {
+            picked = pickByWeightFromList(currentEnemy.styleCfg.intentList);
+        } else {
+            picked = generic[Math.floor(Math.random() * generic.length)];
+        }
+        if (typeof currentEnemy.attackStreak !== 'number') currentEnemy.attackStreak = 0;
+        // limit consecutive normal/attack-type actions to 2 in a row
+        if (isAttackIntent(picked) && currentEnemy.attackStreak >= 2) {
+            const list = (currentEnemy.styleCfg && currentEnemy.styleCfg.intentList) ? currentEnemy.styleCfg.intentList.map(i=>i.name) : generic;
+            const nonAtk = list.filter(i => !isAttackIntent(i));
+            currentEnemy.intent = nonAtk.length ? nonAtk[Math.floor(Math.random()*nonAtk.length)] : "進入守備";
+            currentEnemy.attackStreak = 0;
+        } else {
+            currentEnemy.intent = picked;
+            currentEnemy.attackStreak = isAttackIntent(picked) ? (currentEnemy.attackStreak + 1) : 0;
+        }
+        updateIntentUI();
+    }
+
+    function computeEnemyDamageFor(defense) {
+        if (!currentEnemy || !currentEnemy.intent) return 0;
+        if (currentEnemy.intent === "系統癱瘓") return 0;
+        let eDmg = currentEnemy.atk || 0;
+        if (currentEnemy.styleCfg && currentEnemy.styleCfg.dmgMul) eDmg *= currentEnemy.styleCfg.dmgMul;
+        if (currentEnemy.styleCfg && currentEnemy.styleCfg.berserk && currentEnemy.baseHp && currentEnemy.hp <= currentEnemy.baseHp * 0.5) eDmg *= 1.5;
+        const intent = currentEnemy.intent;
+        if (intent === "進入守備" || intent === "鐵壁防守" || intent === "血清注射") eDmg = 0;
+        else if (intent === "蓄力重擊") eDmg *= 3;
+        else if (intent === "突進") eDmg *= 1.5;
+        else if (intent === "掃射") eDmg *= 1.2;
+        else if (intent === "資料抽取") eDmg *= 0.8;
+        else if (intent === "過載脈衝") eDmg *= 1.1;
+        else if (intent === "狂怒斬擊") eDmg *= 1.3;
+        else if (intent === "碾壓衝撞") eDmg *= 1.2;
+        else if (intent === "制裁") eDmg *= 2.2;
+        if (defense) {
+            if (intent === "突進" || intent === "狂怒斬擊") eDmg = 0;
+            else if (isChargeIntent(intent) || isHackIntent(intent) || isSuppressIntent(intent)) {
+                // 可被駭入打斷的攻擊不可被防禦減傷
+            } else {
+                const red = player.upgrades?.defenseReduce || 0.2;
+                eDmg *= red;
+            }
+        }
+        return Math.max(0, Math.floor(eDmg));
+    }
+
+    function updateIntentUI() {
+        const el = document.getElementById('enemy-intent');
+        const hint = document.getElementById('bonus-hint');
+        const iron = document.getElementById('ironwall-icon');
+        const ironHint = document.getElementById('iron-hint');
+        el.innerText = currentEnemy.intent;
+        if (currentEnemy.intent === "系統癱瘓") {
+            el.classList.add('stun-blink');
+            hint.style.display = 'block';
+            if (iron) iron.style.display = 'none';
+            if (ironHint) ironHint.style.display = 'none';
+        } else if (currentEnemy.intent === "鐵壁防守") {
+            el.classList.remove('stun-blink');
+            hint.style.display = 'none';
+            if (iron) iron.style.display = 'inline-block';
+            if (ironHint) ironHint.style.display = 'block';
+        } else {
+            el.classList.remove('stun-blink');
+            hint.style.display = 'none';
+            if (iron) iron.style.display = 'none';
+            if (ironHint) ironHint.style.display = 'none';
+        }
+        const stEl = document.getElementById('enemy-style');
+        stEl.innerText = `風格：${currentEnemy.style || "-"}`;
+        const dmgEl = document.getElementById('enemy-dmg');
+        const dmgDefEl = document.getElementById('enemy-dmg-def');
+        const predBox = document.getElementById('pred-box');
+        if (isAttackIntent(currentEnemy.intent)) {
+            if (predBox) predBox.style.display = 'block';
+            if (dmgEl) dmgEl.innerText = computeEnemyDamageFor(false);
+            if (dmgDefEl) dmgDefEl.innerText = computeEnemyDamageFor(true);
+        } else {
+            if (predBox) predBox.style.display = 'none';
+        }
+    }
+
+    function renderCombatOptions() {
+        const container = document.getElementById('choices');
+        container.innerHTML = '';
+        const red = Math.max(0, player.upgrades?.costReduction || 0);
+        const heavyCost = Math.max(0, 20 - red);
+        const hackCost = Math.max(0, 20 - red);
+        
+        // 充電選項（固定）
+        const chargeAction = { t: "充電", s: "+30 EN", cost: 0, a: () => combatCycle("charge") };
+        
+        // 如果有充能武裝，改成充能打擊
+        if (player.upgrades?.hasChargeStrike) {
+            chargeAction.t = "充能打擊";
+            chargeAction.s = "造成傷害 | +20 EN";
+            chargeAction.a = () => combatCycle("chargeStrike");
+        }
+        
+        // 其他戰鬥選項池
+        let battleActions = [
+            { t: "戰術強擊", s: `破防 | 消耗 ${heavyCost} EN`, cost: heavyCost, a: () => combatCycle("heavy") },
+            { t: "精準打擊", s: "反狂化 | 消耗 10 EN", cost: 10, a: () => combatCycle("precision") },
+            { t: "系統駭入", s: `斷法 | 消耗 ${hackCost} EN`, cost: hackCost, a: () => combatCycle("hack") },
+            { t: "能量防禦", s: "減傷 | 回復 5 EN", cost: 0, a: () => combatCycle("def") }
+        ];
+        
+        // 如果有充能打擊，移除精準打擊
+        if (player.upgrades?.hasChargeStrike) {
+            battleActions = battleActions.filter(act => act.t !== "精準打擊");
+        }
+        
+        // 隨機選擇3個戰鬥選項
+        const shuffled = [...battleActions].sort(() => Math.random() - 0.5);
+        const selectedActions = shuffled.slice(0, 3);
+        
+        // 組合所有選項（充電/充能打擊+3個隨機戰鬥選項 = 共4個）
+        const allActions = [chargeAction, ...selectedActions];
+        
+        allActions.forEach(act => {
+            const b = document.createElement('button');
+            b.className = 'btn';
+            b.disabled = player.en < act.cost;
+            b.innerHTML = `<span>${act.t}<small>${act.s}</small></span>`;
+            b.onclick = act.a;
+            container.appendChild(b);
+        });
+    }
+
+    function combatCycle(type) {
+        let log = "";
+        let dmgDealt = player.atk + (player.upgrades?.dmgBonusFlat || 0);
+        let activeIntent = currentEnemy.intent;
+
+        document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+
+        if (type === "charge") {
+            player.en = Math.min(player.maxEn, player.en + 30);
+            log = "能量核心回充 +30 EN。";
+            playSFX('hit');
+        }
+        else if (type === "chargeStrike") {
+            player.en = Math.min(player.maxEn, player.en + 20);
+            // apply 電擊(觸電) stack, 每層每回合1點，最多3層
+            currentEnemy.shock = Math.min(3, (currentEnemy.shock || 0) + 1);
+            if (isBerserkIntent(activeIntent)) {
+                applyShake(25);
+                log = "<span class='highlight'>充能打擊！</span> 狂怒被斷，敵人無法行動一回合。 +20 EN";
+                if (!isIronWall(activeIntent)) {
+                    currentEnemy.hp -= (dmgDealt * 0.8) * (currentEnemy.styleCfg?.dmgTakenMul || 1);
+                } else {
+                    log += " (對鐵壁防守無效傷害)";
+                }
+                currentEnemy.intent = "系統癱瘓";
+                currentEnemy.attackStreak = 0;
+            } else {
+                log = "充能打擊命中。 +20 EN";
+                if (!isIronWall(activeIntent)) {
+                    currentEnemy.hp -= (dmgDealt * 0.8) * (currentEnemy.styleCfg?.dmgTakenMul || 1);
+                } else {
+                    log += " (對鐵壁防守無效傷害)";
+                }
+            }
+            log += ` <span class='shock-blink'>觸電層數：${currentEnemy.shock}</span>`;
+            playSFX('hit');
+        }
+        else if (type === "atk") {
+            const enGainNow = 15 + (player.upgrades?.enGainBasic || 0);
+            player.en = Math.min(player.maxEn, player.en + enGainNow);
+            if (isIronWall(activeIntent)) {
+                log = "對上鐵壁防守，攻擊無效。";
+            } else {
+                if (isDefendIntent(activeIntent)) { log = "攻擊被格擋，傷害微弱。"; dmgDealt *= 0.3; }
+                else { log = "擊中目標，能量核心回充。"; }
+                const extraBasic = player.upgrades?.basicBonus || 0;
+                currentEnemy.hp -= (dmgDealt + extraBasic) * (currentEnemy.styleCfg?.dmgTakenMul || 1);
+            }
+            playSFX('hit');
+        } 
+        else if (type === "heavy") {
+            const red = Math.max(0, player.upgrades?.costReduction || 0);
+            const costNow = Math.max(0, 20 - red);
+            player.en -= costNow;
+            if (isIronWall(activeIntent)) {
+                log = "對上鐵壁防守，攻擊無效。";
+                // 鐵壁防守使大多數攻擊無效（不造成傷害）
+            }
+            else if (isDefendIntent(activeIntent)) {
+                const mult = player.upgrades?.heavyMult || 1.0;
+                const finalDmg = Math.floor((dmgDealt * mult * 2) * (currentEnemy.styleCfg?.dmgTakenMul || 1));
+                applyShake(finalDmg);
+                log = `<span class='highlight'>破防！</span><span style="color:var(--yellow);font-size:1.2em"> [${finalDmg}]</span> 目標核心暴露，你獲得額外行動機會！`;
+                currentEnemy.hp -= finalDmg;
+                currentEnemy.intent = "系統癱瘓";
+                currentEnemy.attackStreak = 0;
+                playSFX('break');
+            } else {
+                log = "重型打擊。";
+                const mult = player.upgrades?.heavyMult || 1.0;
+                const finalDmg = Math.floor((dmgDealt * mult * 2) * (currentEnemy.styleCfg?.dmgTakenMul || 1));
+                log += `<span style="color:var(--yellow);font-size:1.1em"> [${finalDmg}]</span>`;
+                applyShake(finalDmg);
+                currentEnemy.hp -= finalDmg;
+                playSFX('heavy');
+            }
+        }
+        else if (type === "precision") {
+            player.en -= 10;
+            const basePrecision = (dmgDealt * 0.8) * (currentEnemy.styleCfg?.dmgTakenMul || 1);
+            // ensure minimum 1 damage so iron wall can't nullify due to rounding
+            let applied = Math.floor(basePrecision);
+            if (applied < 1) applied = 1;
+            if (isBerserkIntent(activeIntent)) {
+                applyShake(25);
+                log = "<span class='highlight'>精準反制！</span> 狂怒被斷，敵人無法行動一回合。";
+                if (isIronWall(activeIntent)) log += " (忽略鐵壁防守)";
+                currentEnemy.hp -= applied;
+                currentEnemy.intent = "系統癱瘓";
+                currentEnemy.attackStreak = 0;
+            } else {
+                log = "精準一擊。";
+                if (isIronWall(activeIntent)) log += " (忽略鐵壁防守)";
+                currentEnemy.hp -= applied;
+            }
+            playSFX('hit');
+        }
+        else if (type === "hack") {
+            const red = Math.max(0, player.upgrades?.costReduction || 0);
+            const costNow = Math.max(0, 20 - red);
+            player.en -= costNow;
+            if (isIronWall(activeIntent)) {
+                log = "駭入無效，目標正處於鐵壁防守。";
+            } else if (isChargeIntent(activeIntent) || isHackIntent(activeIntent) || isSuppressIntent(activeIntent)) {
+                applyShake(20);
+                log = "<span class='highlight'>干擾成功！</span> 目標邏輯鎖死，你獲得額外行動機會！";
+                currentEnemy.intent = "系統癱瘓";
+                currentEnemy.attackStreak = 0;
+                const bonus = player.upgrades?.hackStunBonus || 0;
+                if (bonus > 0) {
+                    currentEnemy.hp -= bonus * (currentEnemy.styleCfg?.dmgTakenMul || 1);
+                    log += " 造成額外傷害。";
+                }
+            } else {
+                // interrupt any other action (including 標準攻擊、碾壓衝撞、突進等)
+                applyShake(20);
+                log = "<span class='highlight'>干擾成功！</span> 成功駭入，敵人的動作遭到打斷，敵人被跳過一回合！";
+                currentEnemy.interrupted = true;
+                currentEnemy.attackStreak = 0;
+            }
+        }
+        else if (type === "def") {
+            player.en = Math.min(player.maxEn, player.en + 5);
+            player.isDefending = true;
+            if (isDashIntent(activeIntent)) {
+                applyShake(10);
+                currentEnemy.intent = "系統癱瘓";
+                currentEnemy.attackStreak = 0;
+                currentEnemy.hp -= 10 * (currentEnemy.styleCfg?.dmgTakenMul || 1);
+                log = "<span class='highlight'>完美格擋！</span> 反震使敵人無法行動一回合並受到 10 傷害。";
+            } else {
+                log = "防禦程序啟動。";
+            }
+        }
+
+        updateEnemyUI();
+        updateIntentUI();
+
+        if (currentEnemy.hp <= 0) {
+            player.credits += currentEnemy.reward;
+            msg(`${log}<br><span class="highlight">目標清除。</span> 獲得 $${currentEnemy.reward}`);
+            updateUI();
+            const ep = document.getElementById('enemy-panel');
+            if (ep) ep.style.display = 'none';
+            currentEnemy = null;
+            setTimeout(postCombat, 800);
+            return;
+        }
+
+        if ((currentEnemy.intent === "系統癱瘓" && activeIntent !== "系統癱瘓") || currentEnemy.interrupted) {
+            setTimeout(() => {
+                let extraMsg = "";
+                if (currentEnemy.intent === "系統癱瘓" && activeIntent !== "系統癱瘓") {
+                    extraMsg = "<br><span class='stun-blink'>敵人無法行動一回合！</span>";
+                } else if (currentEnemy.interrupted) {
+                    extraMsg = "<br>成功駭入，敵人的動作遭到打斷。";
+                    currentEnemy.interrupted = false; // reset
+                }
+                msg(log + extraMsg);
+                updateUI();
+                renderCombatOptions();
+            }, 600);
+        } else {
+            setTimeout(() => {
+                let eDmg = currentEnemy.atk;
+                if (currentEnemy.styleCfg?.dmgMul) eDmg *= currentEnemy.styleCfg.dmgMul;
+                if (currentEnemy.styleCfg?.berserk && currentEnemy.baseHp && currentEnemy.hp <= currentEnemy.baseHp * 0.5) eDmg *= 1.5;
+                if (currentEnemy.regenPerTurn && currentEnemy.regenTurns > 0) {
+                    const healTick = currentEnemy.regenPerTurn;
+                    currentEnemy.hp = Math.min(currentEnemy.baseHp || currentEnemy.hp, currentEnemy.hp + healTick);
+                    log += `<br>敵人再生 ${healTick} HP。`;
+                    currentEnemy.regenTurns -= 1;
+                }
+                // 觸電效果：每層每回合 1 點傷害，最多 3 層
+                if (currentEnemy.shock && currentEnemy.shock > 0) {
+                    const shockDmg = Math.min(3, currentEnemy.shock);
+                    currentEnemy.hp = Math.max(0, currentEnemy.hp - shockDmg);
+                    log += `<br><span class='shock-blink'>${currentEnemy.name} 受到觸電傷害 ${shockDmg}。</span>`;
+                }
+                if (currentEnemy.intent === "系統癱瘓") {
+                    log += `<br>敵人從癱瘓中恢復，重新啟動系統...`;
+                    setEnemyIntent();
+                } else {
+                    if (currentEnemy.interrupted) {
+                        log += `<br>敵人的攻擊被駭入打斷！`;
+                        eDmg = 0;
+                        currentEnemy.interrupted = false;
+                    }
+                    if (activeIntent === "血清注射") {
+                        const baseHeal = 25;
+                        currentEnemy.hp = Math.min(currentEnemy.baseHp || currentEnemy.hp, currentEnemy.hp + baseHeal);
+                        currentEnemy.regenPerTurn = 5;
+                        currentEnemy.regenTurns = (currentEnemy.regenTurns || 0) + 3;
+                        log += `<br>${currentEnemy.name} 使用血清注射，回復 ${baseHeal} 並獲得再生效果。`;
+                        eDmg = 0;
+                    }
+                    if (activeIntent === "蓄力重擊") { eDmg *= 3; }
+                    if (isDefendIntent(activeIntent)) eDmg = 0;
+                    if (activeIntent === "突進") eDmg *= 1.5;
+                    if (activeIntent === "掃射") { eDmg *= 1.2; player.en = Math.max(0, player.en - 5); log += "<br>能量被壓制 5 EN。"; }
+                    if (activeIntent === "資料抽取") { eDmg *= 0.8; player.en = Math.max(0, player.en - 15); log += "<br>資料抽取成功，EN -15。"; }
+                    if (activeIntent === "過載脈衝") { eDmg *= 1.1; player.en = Math.max(0, player.en - 20); log += "<br>過載脈衝干擾，EN -20。"; }
+                    if (activeIntent === "狂怒斬擊") { eDmg *= 1.3; currentEnemy.hp -= 5; log += "<br>狂怒斬擊反噬，敵人自損 5。"; }
+                    if (activeIntent === "碾壓衝撞") { eDmg *= 1.2; }
+                    if (activeIntent === "鐵壁防守") { eDmg = 0; }
+                    if (activeIntent === "制裁") { eDmg *= 2.2; }
+                    let defUsed = false;
+                    let defBypassed = false;
+                    if (player.isDefending) {
+                        if (isChargeIntent(activeIntent) || isHackIntent(activeIntent) || isSuppressIntent(activeIntent)) {
+                            // 這些意圖會無視防禦（破防）
+                            player.isDefending = false;
+                            defBypassed = true;
+                        } else {
+                            eDmg *= (player.upgrades?.defenseReduce || 0.2);
+                            defUsed = true;
+                            player.isDefending = false;
+                        }
+                    }
+                    if (eDmg > 0) {
+                        const finalEDmg = Math.floor(eDmg);
+                        player.hp -= finalEDmg;
+                        applyShake(finalEDmg);
+                        log += `<br>${currentEnemy.name} 執行 ${activeIntent}：造成 ${finalEDmg} 傷害。`;
+                        if (defUsed && (player.upgrades?.thorns || 0) > 0) {
+                            const t = player.upgrades.thorns;
+                            currentEnemy.hp -= t * (currentEnemy.styleCfg?.dmgTakenMul || 1);
+                            log += ` 導致反震 ${t} 傷害。`;
+                        }
+                        // 若為破防類傷害，播放玻璃破碎音效；否則播放一般受擊音效
+                        if (defBypassed) playSFX('break'); else playSFX('get');
+                    }
+                    setEnemyIntent();
+                }
+                updateEnemyUI();
+                updateIntentUI();
+                if (player.hp <= 0) { die(); return; }
+                msg(log);
+                updateUI();
+                renderCombatOptions();
+            }, 600);
+        }
+    }
+
+    function postCombat() {
+        showNextOptions();
+    }
+
+    function triggerEvent() {
+        const evs = [
+            { t: "廢棄終端", a: () => {
+                msg("嘗試破解終端機？");
+                renderChoices([{text:"破解(60%)", a:()=>{
+                    if(Math.random()<0.6){ player.credits+=100; msg("<span class='highlight'>成功！</span> 獲得 $100"); }
+                    else { player.hp-=20; applyShake(20); msg("反擊電湧！HP -20"); }
+                    if (player.hp <= 0) { updateUI(); die(); return; }
+                    showNextOptions(); updateUI();
+                }}, {text:"離開", a:showNextOptions}]);
+            }},
+            { t: "連鎖故障", a: () => {
+                player.hp -= 15; applyShake(15);
+                msg("環境輻射引發故障：HP -15。");
+                if (player.hp <= 0) { updateUI(); die(); return; }
+                showNextOptions(); updateUI();
+            }},
+            { t: "黑市商販", a: () => {
+                msg("黑市商販低聲兜售改裝。");
+                renderChoices([
+                    { text:"$80 換 攻擊核心 +8", a:()=>{
+                        if(player.credits>=80){ player.credits-=80; player.atk+=8; msg("<span class='highlight'>交易完成。</span> ATK +8"); }
+                        else { msg("資金不足。"); }
+                        showNextOptions(); updateUI();
+                    }},
+                    { text:"$50 換 醫療注射 +30 HP", a:()=>{
+                        if(player.credits>=50){ player.credits-=50; player.hp=Math.min(100, player.hp+30); msg("恢復 30 HP"); }
+                        else { msg("資金不足。"); }
+                        showNextOptions(); updateUI();
+                    }},
+                    { text:"離開", a:showNextOptions }
+                ]);
+            }},
+            { t: "遺失補給箱", a: ()=>{
+                msg("發現無標識補給箱。");
+                renderChoices([
+                    { text:"撬開(70%)", a:()=>{
+                        if(Math.random()<0.7){ player.credits+=120; msg("<span class='highlight'>開啟成功。</span> 獲得 $120"); }
+                        else { player.hp-=15; applyShake(15); msg("陷阱觸發！HP -15"); if(player.hp<=0){ updateUI(); die(); return; } }
+                        showNextOptions(); updateUI();
+                    }},
+                    { text:"離開", a:showNextOptions }
+                ]);
+            }},
+            { t: "能量洩漏", a: ()=>{
+                msg("牆面裂縫滲出能量霧。");
+                renderChoices([
+                    { text:"吸收 EN+40 HP-10", a:()=>{
+                        player.en=Math.min(player.maxEn, player.en+40); player.hp-=10; applyShake(10); msg("EN +40, HP -10");
+                        if(player.hp<=0){ updateUI(); die(); return; }
+                        showNextOptions(); updateUI();
+                    }},
+                    { text:"封堵 HP+15 EN-10", a:()=>{
+                        player.hp=Math.min(100, player.hp+15); player.en=Math.max(0, player.en-10); msg("HP +15, EN -10");
+                        showNextOptions(); updateUI();
+                    }},
+                    { text:"離開", a:showNextOptions }
+                ]);
+            }},
+            { t: "巡邏無人機", a: ()=>{
+                msg("前方巡邏無人機正在接近。");
+                renderChoices([
+                    { text:"潛行(50%)", a:()=>{
+                        if(Math.random()<0.5){ player.credits+=30; msg("<span class='highlight'>避過監控。</span> 搜刮 $30"); }
+                        else { player.hp-=12; applyShake(12); msg("遭到掃射！HP -12"); if(player.hp<=0){ updateUI(); die(); return; } }
+                        showNextOptions(); updateUI();
+                    }},
+                    { text:"離開", a:showNextOptions }
+                ]);
+            }},
+            { t: "求救訊號", a: ()=>{
+                msg("收到微弱求救訊號。");
+                renderChoices([
+                    { text:"救援 $40 換 maxEN +20", a:()=>{
+                        if(player.credits>=40){ player.credits-=40; player.maxEn+=20; player.en+=20; msg("<span class='highlight'>回饋已發放。</span> maxEN +20"); }
+                        else { msg("資金不足。"); }
+                        showNextOptions(); updateUI();
+                    }},
+                    { text:"忽略", a:showNextOptions }
+                ]);
+            }},
+            { t: "資料碎片", a: ()=>{
+                msg("發現加密資料碎片。");
+                renderChoices([
+                    { text:"解析 消耗20 EN 換 ATK +5", a:()=>{
+                        if(player.en>=20){ player.en-=20; player.atk+=5; msg("<span class='highlight'>解析成功。</span> ATK +5"); }
+                        else { msg("能量不足。"); }
+                        showNextOptions(); updateUI();
+                    }},
+                    { text:"離開", a:showNextOptions }
+                ]);
+            }},
+            { t: "醫療站", a: ()=>{
+                msg("簡易醫療站處於待機。");
+                renderChoices([
+                    { text:"$60 修復 60 HP", a:()=>{
+                        if(player.credits>=60){ player.credits-=60; player.hp=Math.min(100, player.hp+60); msg("已修復 60 HP"); }
+                        else { msg("資金不足。"); }
+                        showNextOptions(); updateUI();
+                    }},
+                    { text:"離開", a:showNextOptions }
+                ]);
+            }},
+            { t: "秘密伺服器", a: ()=>{
+                msg("發現隱藏伺服器。");
+                renderChoices([
+                    { text:"入侵(50%)", a:()=>{
+                        if(Math.random()<0.5){ player.credits+=80; player.atk+=3; msg("<span class='highlight'>入侵成功！</span> $80 + ATK +3"); }
+                        else { player.hp-=18; applyShake(18); msg("防護系統反擊！HP -18"); if(player.hp<=0){ updateUI(); die(); return; } }
+                        showNextOptions(); updateUI();
+                    }},
+                    { text:"離開", a:showNextOptions }
+                ]);
+            }},
+            { t: "電子垃圾堆", a: ()=>{
+                msg("龐大的電子垃圾堆，可以淘金。");
+                renderChoices([
+                    { text:"挖掘", a:()=>{
+                        const loot = Math.floor(Math.random() * 60) + 30;
+                        player.credits += loot;
+                        msg(`<span class='highlight'>挖掘完成。</span> 獲得 $${loot}`);
+                        showNextOptions(); updateUI();
+                    }},
+                    { text:"離開", a:showNextOptions }
+                ]);
+            }},
+            { t: "訊號中繼站", a: ()=>{
+                msg("發現訊號中繼站，可以修復設備。");
+                renderChoices([
+                    { text:"修復(消耗30 EN)", a:()=>{
+                        if(player.en>=30){ 
+                            player.en-=30; 
+                            player.hp=Math.min(200, player.hp+50); 
+                            player.maxEn=Math.min(150, player.maxEn+10);
+                            msg("<span class='highlight'>修復完成。</span> HP +50, maxEN +10"); 
+                        } else { msg("能量不足。"); }
+                        showNextOptions(); updateUI();
+                    }},
+                    { text:"離開", a:showNextOptions }
+                ]);
+            }},
+            { t: "軍用倉庫", a: ()=>{
+                msg("鎖定軍用倉庫門鎖。");
+                renderChoices([
+                    { text:"爆破 消耗20 EN(60%)", a:()=>{
+                        if(player.en>=20){ 
+                            player.en-=20; 
+                            if(Math.random()<0.6){ player.credits+=150; msg("<span class='highlight'>成功破門。</span> 獲得 $150"); }
+                            else { player.hp-=25; applyShake(25); msg("防爆陷阱啟動！HP -25"); if(player.hp<=0){ updateUI(); die(); return; } }
+                        } else { msg("能量不足。"); }
+                        showNextOptions(); updateUI();
+                    }},
+                    { text:"離開", a:showNextOptions }
+                ]);
+            }},
+            { t: "精密研究室", a: ()=>{
+                msg("精密研究室還有待機的改造設備。");
+                renderChoices([
+                    { text:"升級 $70", a:()=>{
+                        if(player.credits>=70){ 
+                            player.credits-=70; 
+                            player.atk+=5;
+                            player.hp=Math.min(200, player.hp+20);
+                            msg("<span class='highlight'>升級完成。</span> ATK +5, HP +20"); 
+                        } else { msg("資金不足。"); }
+                        showNextOptions(); updateUI();
+                    }},
+                    { text:"離開", a:showNextOptions }
+                ]);
+            }}
+        ];
+        evs[Math.floor(Math.random()*evs.length)].a();
+    }
+
+    function showNextOptions() {
+        document.getElementById('choices').innerHTML = `
+            <button class="btn" onclick="advanceStage()"><span>繼續探索</span></button>
+            <button class="btn btn-shop" onclick="showShop()"><span>訪問補給站</span></button>
+        `;
+    }
+    
+    function advanceStage() {
+        player.stage++;
+        initStage();
+    }
+
+    function showShop() {
+        msg("--- 補給終端 ---");
+        const container = document.getElementById('choices');
+        container.innerHTML = '';
+        const staticBtns = [
+            { id:'hp', text: `修復針 $${getStaticPrice('hp')}`, price: getStaticPrice('hp') },
+            { id:'en_b', text: `電池 $${getStaticPrice('en_b')}`, price: getStaticPrice('en_b') },
+            { id:'atk', text: `攻擊核心 $${getStaticPrice('atk')}`, price: getStaticPrice('atk') },
+            { id:'en_u', text: `能量擴張 $${getStaticPrice('en_u')}`, price: getStaticPrice('en_u') },
+        ];
+        staticBtns.forEach(b => {
+            const el = document.createElement('button');
+            el.className = 'btn';
+            el.innerHTML = `<span>${b.text}</span>`;
+            el.disabled = player.credits < b.price;
+            el.dataset.kind = 'static';
+            el.dataset.id = b.id;
+            el.dataset.price = String(b.price);
+            el.onclick = ()=>buy(b.id);
+            container.appendChild(el);
+        });
+        const title = document.createElement('div');
+        title.style.gridColumn = 'span 2';
+        title.style.marginTop = '6px';
+        title.innerText = "升級模組";
+        container.appendChild(title);
+        if (!player.shopCache) player.shopCache = {};
+        if (!player.shopCache.upgrades) {
+            const rolled = rollUpgrades(3);
+            player.shopCache.upgrades = rolled.map(u=>u.id);
+        }
+        const ups = player.shopCache.upgrades.map(id => upgradesPool.find(u=>u.id===id)).filter(Boolean);
+        ups.forEach(up=>{
+            const el = document.createElement('button');
+            el.className = 'btn btn-shop';
+            el.innerHTML = `<span>${up.name} $${up.price}<small>${up.desc}</small></span>`;
+            const owned = !!player.ownedUpgrades[up.id];
+            el.disabled = owned || player.credits < up.price;
+            el.dataset.kind = 'upgrade';
+            el.dataset.upgradeId = up.id;
+            el.dataset.price = String(up.price);
+            el.onclick = ()=>buyUpgrade(up.id);
+            container.appendChild(el);
+        });
+        const close = document.createElement('button');
+        close.className = 'btn';
+        close.style.gridColumn = 'span 2';
+        close.innerHTML = '<span>關閉</span>';
+        close.onclick = ()=>{ showShopExitOptions(); };
+        container.appendChild(close);
+    }
+
+    function showShopExitOptions() {
+        const container = document.getElementById('choices');
+        container.innerHTML = '';
+        const b1 = document.createElement('button');
+        b1.className = 'btn';
+        b1.innerHTML = '<span>進入戰鬥</span>';
+        b1.onclick = ()=>{ advanceStage(); };
+        const b2 = document.createElement('button');
+        b2.className = 'btn btn-shop';
+        b2.innerHTML = '<span>回到商店</span>';
+        b2.onclick = ()=>{ showShop(); };
+        container.appendChild(b1);
+        container.appendChild(b2);
+    }
+
+    function buy(type) {
+        let success = false;
+        const price = getStaticPrice(type);
+        if (type === 'hp') {
+            if (player.credits >= price) { player.hp = Math.min(100, player.hp + 40); player.credits -= price; success = true; }
+        } else if (type === 'en_b') {
+            if (player.credits >= price) { player.en = Math.min(player.maxEn, player.en + 50); player.credits -= price; success = true; }
+        } else if (type === 'atk') {
+            if (player.credits >= price) { player.atk += 6; player.credits -= price; player.shopCounts.atk = (player.shopCounts.atk || 0) + 1; success = true; }
+        } else if (type === 'en_u') {
+            if (player.credits >= price) { player.maxEn += 20; player.en += 20; player.credits -= price; success = true; }
+        }
+        if (!success) { msg("資金不足。"); }
+        updateUI();
+        refreshShopAffordability();
+    }
+
+    function getStaticPrice(id) {
+        if (id === 'hp') return 40;
+        if (id === 'en_b') return 30;
+        if (id === 'en_u') return 100;
+        if (id === 'atk') {
+            const n = player.shopCounts?.atk || 0;
+            return 120 + 60 * n;
+        }
+        return 0;
+    }
+
+    const upgradesPool = [
+        { id: 'UP_BASIC_PLUS', name: '打擊伺服器', price: 120, desc: '+8 普攻傷害', apply: ()=>{ player.upgrades.basicBonus += 8; } },
+        { id: 'UP_EN_CYCLER', name: '充能武裝', price: 90, desc: '精準打擊+充電→充能打擊', apply: ()=>{ player.upgrades.hasChargeStrike = true; } },
+        { id: 'UP_HEAVY_SERVO', name: '重擊伺服器', price: 140, desc: '重擊傷害 +50%', apply: ()=>{ player.upgrades.heavyMult += 0.5; } },
+        { id: 'UP_HACK_AMP', name: '干擾增幅器', price: 110, desc: '干擾成功額外造成 20 傷害', apply: ()=>{ player.upgrades.hackStunBonus += 20; } },
+        { id: 'UP_DEF_SHIELD', name: '反震護盾', price: 130, desc: '防禦減傷至 10%，反震 5 傷害', apply: ()=>{ player.upgrades.defenseReduce = Math.min(player.upgrades.defenseReduce, 0.1); player.upgrades.thorns += 5; } },
+        { id: 'UP_COST_SAVER', name: '節流模組', price: 100, desc: '重擊/駭入 EN 消耗 -5', apply: ()=>{ player.upgrades.costReduction += 5; } },
+        { id: 'UP_CORE', name: '致命核心', price: 140, desc: '所有傷害 +6；重擊傷害 +10%', apply: ()=>{ player.upgrades.dmgBonusFlat += 6; player.upgrades.heavyMult += 0.1; } },
+        { id: 'UP_RESILIENCE', name: '韌性強化', price: 120, desc: 'HP +20，防禦減傷額外 -5%', apply: ()=>{ player.hp = Math.min(player.hp + 20, 200); player.upgrades.defenseReduce = Math.max(0.05, (player.upgrades.defenseReduce || 0.2) - 0.05); } },
+        { id: 'UP_SHOCK_BOOST', name: '觸電增幅', price: 110, desc: '觸電傷害 +1，最多 4 層', apply: ()=>{ player.upgrades.shockDmg = (player.upgrades.shockDmg || 1) + 1; } },
+        { id: 'UP_PRECISION_CRIT', name: '精准強化', price: 100, desc: '精準打擊傷害 +30%', apply: ()=>{ player.upgrades.precisionBonus = (player.upgrades.precisionBonus || 0) + 0.3; } },
+        { id: 'UP_CHARGE_POWER', name: '蓄能增強', price: 95, desc: '充電每次 +10 EN', apply: ()=>{ player.upgrades.chargeBonus = (player.upgrades.chargeBonus || 0) + 10; } },
+        { id: 'UP_EN_REGEN', name: '能量再生', price: 125, desc: '每回合恢復 2 EN', apply: ()=>{ player.upgrades.enRegen = (player.upgrades.enRegen || 0) + 2; } }
+    ];
+
+    function rollUpgrades(n){
+        // Allow all upgrades (including owned ones) with 60% chance to exclude already owned
+        const avail = upgradesPool.filter(u => {
+            if (player.ownedUpgrades[u.id] && Math.random() < 0.6) return false;
+            return true;
+        });
+        const arr = avail.length > 0 ? [...avail] : [...upgradesPool];
+        for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=arr[i]; arr[i]=arr[j]; arr[j]=t; }
+        return arr.slice(0, Math.min(n, arr.length));
+    }
+
+    function buyUpgrade(id){
+        const up = upgradesPool.find(u=>u.id===id);
+        if(!up) return;
+        if(player.credits < up.price) return;
+        player.credits -= up.price;
+        up.apply();
+        // Mark as owned but also allow repurchasing
+        if (!player.ownedUpgrades[id]) {
+            player.ownedUpgrades[id] = true;
+        }
+        updateUI();
+        refreshShopAffordability();
+    }
+
+    function refreshShopAffordability() {
+        const container = document.getElementById('choices');
+        if (!container) return;
+        const btns = Array.from(container.querySelectorAll('button.btn'));
+        btns.forEach(b=>{
+            const kind = b.dataset.kind;
+            if (kind === 'static') {
+                const price = Number(b.dataset.price || '0');
+                b.disabled = player.credits < price;
+            } else if (kind === 'upgrade') {
+                const id = b.dataset.upgradeId;
+                const price = Number(b.dataset.price || '0');
+                const owned = !!player.ownedUpgrades[id];
+                b.disabled = owned || player.credits < price;
+            }
+        });
+    }
+
+    function renderChoices(opts) {
+        const container = document.getElementById('choices');
+        container.innerHTML = '';
+        opts.forEach(o => {
+            const b = document.createElement('button');
+            b.className = 'btn';
+            b.innerHTML = `<span>${o.text}</span>`;
+            b.onclick = o.a;
+            container.appendChild(b);
+        });
+    }
+
+    function applyShake(damage = 10) {
+        const el = document.getElementById('game-container');
+        let shakeClass = 'shake-minor';
+        
+        // 根据伤害值设置晃动强度
+        if (damage >= 50) {
+            shakeClass = 'shake-intense';
+        } else if (damage >= 35) {
+            shakeClass = 'shake-strong';
+        } else if (damage >= 20) {
+            shakeClass = 'shake-medium';
+        } else {
+            shakeClass = 'shake-minor';
+        }
+        
+        el.classList.remove('shake', 'shake-minor', 'shake-medium', 'shake-strong', 'shake-intense');
+        void el.offsetWidth;
+        el.classList.add(shakeClass);
+    }
+
+    function msg(m) { document.getElementById('story-text').innerHTML = m; }
+    
+    function updateUI() {
+        document.getElementById('hp-val').innerText = player.hp;
+        document.getElementById('en-val').innerText = player.en;
+        document.getElementById('max-en-val').innerText = player.maxEn;
+        document.getElementById('credit-val').innerText = player.credits;
+        document.getElementById('stage-val').innerText = player.stage;
+        document.getElementById('atk-val').innerText = player.atk;
+        
+        // 更新HP進度條
+        const hpPercent = Math.max(0, Math.min(100, (player.hp / 100) * 100));
+        const hpBar = document.getElementById('hp-bar');
+        if (hpBar) hpBar.style.width = hpPercent + '%';
+        
+        // 更新EN進度條
+        const enPercent = Math.max(0, Math.min(100, (player.en / player.maxEn) * 100));
+        const enBar = document.getElementById('en-bar');
+        if (enBar) enBar.style.width = enPercent + '%';
+        
+        if (typeof refreshShopAffordability === 'function') {
+            refreshShopAffordability();
+        }
+    }
+
+    function updateEnemyUI() {
+        document.getElementById('enemy-hp').innerText = Math.max(0, Math.floor(currentEnemy.hp));
+        document.getElementById('enemy-name').innerText = currentEnemy.name;
+        const stEl = document.getElementById('enemy-style');
+        if (stEl) stEl.innerText = `風格：${currentEnemy.style || "-"}`;
+        const panel = document.getElementById('enemy-panel');
+        if (panel) {
+            panel.classList.remove('rank-normal','rank-elite','rank-boss');
+            const rk = currentEnemy.rank || "Normal";
+            if (rk === "Boss") panel.classList.add('rank-boss');
+            else if (rk === "Elite") panel.classList.add('rank-elite');
+            else panel.classList.add('rank-normal');
+        }
+    }
+
+    function die() {
+        applyShake(30);
+        const ep = document.getElementById('enemy-panel');
+        if (ep) ep.style.display = 'none';
+        const reached = player.stage;
+        msg(`<span class='highlight'>[連結失敗]</span><br>到達層數：<span class='highlight'>${reached}</span>`);
+        document.getElementById('choices').innerHTML = `
+            <div style="grid-column:span 2; text-align:center; padding:12px; border:1px dashed #333; margin-bottom:10px">
+                <div>本次到達層數：<span class="highlight">${reached}</span></div>
+            </div>
+            <button class="btn" style="grid-column:span 2" onclick="location.reload()"><span>重新啟動</span></button>
+        `;
+        updateUI();
+    }
+
+    // 初始化遊戲
+    initStage();
+</script>
+</body>
+</html>
